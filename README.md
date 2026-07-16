@@ -1,16 +1,16 @@
 # Wuwa Mobile Config
 
-Performance and graphics configuration presets for **Wuthering Waves Mobile (Version 3.4)** designed to help optimize gameplay based on device capability.
+Performance and graphics configuration presets for **Wuthering Waves Mobile (Version 3.5)** designed to help optimize gameplay based on device capability.
 
 These configs aim to improve FPS stability, visual quality, or provide a balanced gaming experience depending on your hardware.
 
-Built using Kuro Game's official **3.4 engine configuration structure**, AlteriaX's command references, and extensive testing across multiple Android GPU architectures.
+Built using Kuro Game's official **3.5 engine configuration structure**, AlteriaX's command references, and extensive testing across multiple Android GPU architectures.
 
 ---
 
-# 🛠️ Patch 3.4 Optimization Summary
+# 🛠️ Patch 3.5 Optimization Summary
 
-Version **3.4** continues Kuro's streaming and memory management improvements introduced in previous versions while expanding support for newer mobile hardware.
+Version **3.5** continues Kuro's streaming and memory management improvements introduced in previous versions while expanding support for newer mobile hardware.
 
 The following optimizations are applied throughout the config collection:
 
@@ -39,6 +39,69 @@ The following optimizations are applied throughout the config collection:
 
   * Optimized World Partition loading ranges.
   * Reduced stutters during traversal and fast movement.
+
+---
+
+# 🔧 Config Rebuild Notes (v3.5)
+
+This update carries over the same 8-tier structure (4 tiers × All Devices / Snapdragon) but every preset was rebuilt from the ground up after an audit turned up a structural bug affecting every prior draft, plus a batch of forbidden/ineffective CVars. Details below.
+
+### The structural bug (fixed in every tier)
+
+Every prior draft defined its profile like this:
+
+```ini
+[Android_SomeTierName DeviceProfile]
+DeviceType=Android
+BaseProfileName=Android
+```
+
+The engine only assigns a device to a profile when it detects a **real GPU family name** (e.g. `Android_Mali_G57`, `Android_Adreno730`). `Android_SomeTierName` isn't a name the engine ever detects, so none of these profiles were actually applied to any real device — every tweak inside them was dead code.
+
+**Fix:** every tier now uses a two-layer structure — one base profile holding the actual CVars, and a list of real detected GPU family names that point to it via `BaseProfileName=`, matching the pattern this repo's own configs use.
+
+### Forbidden CVars removed
+
+Per this repo's own FAQ, Kuro's `ConfigMonitor` silently strips certain CVars at runtime — setting them does nothing.
+
+| CVar | Status | What we did |
+|---|---|---|
+| `r.MobileContentScaleFactor` | Forbidden, no bypass | Removed. Resolution scale must be set in-game via Developer Options. |
+| `r.Streaming.PoolSize` | Forbidden, no bypass | Removed. Texture memory footprint now controlled through `sg.TextureQuality`, which the engine does honor. |
+| `r.ViewDistanceScale` | Forbidden, **but has a bypass** | Converted to `sg.ViewDistanceQuality` in every tier — same intent, actually takes effect. |
+| `r.FEstimation.Option`, `r.SecondaryScreenPercentage.GameViewport` | Forbidden, no bypass | Never added — even the maintainer's own High-Visual and A High-End files still carry these as dead weight. |
+
+### Recurring fixes applied across multiple tiers
+
+- **`sg.EffectsQuality` hard-capped at 2 everywhere**, regardless of visual tier — a documented crash threshold; going higher crashes the game outright.
+- **KuroFI (Frame Interpolation)** needs two companion CVars to avoid a known crash (the "bike" frame-gen bug per this repo's own changelog): `r.KuroFI.EnableSingleOcclusionBloomReplace=1` and `r.KuroFI.InternalResolutionScale=0.5`. Both Low-End tiers disable FI entirely instead — pure overhead with no upside on weak hardware.
+- **Engine.ini vs. DeviceProfiles.ini conflicts**: DeviceProfiles.ini loads after Engine.ini and can silently override it. A few drafts had DeviceProfile CVars quietly *downgrading* a value Engine.ini had already set higher (e.g. `r.SSR.Quality`, `r.ShadowQuality`). Removed rather than left to fight the baseline.
+- **Skin cache reduced (128MB → 64MB)** on both Low-End tiers — a fixed memory allocation for character mesh deformation; halving it helps 3-4GB RAM devices without a visible model quality hit.
+
+### Unverified / flagged CVars
+
+Kept because they're plausible and not proven harmful, but not confirmed against this repo's testing — watch these closely if you install:
+
+- **`r.GSR.Enabled`** (Snapdragon tiers) — Qualcomm's GSR upscaler plugin exists in the engine, but no `r.GSR.*` cvar appears anywhere in this repo.
+- **`r.PSO.LRUCapacity`** — plausible shader-cache cvar, not seen in any reference file.
+- **`fx.Niagara.QualityLevel`** (Balanced Visual tier and up) — not used in any current-gen tier here.
+
+**VRS is disabled by default** on Balanced Visual and High End (both folders). The requested `r.VRS.EnableMaterial` / `r.VRS.EnableMesh` don't appear anywhere in this repo — the only place VRS shows up at all is a `Deprecated Configs` folder from an old experimental RT test, and even there the cvars used were different (`r.VRS.EnableImage`, `r.VRS.ContrastAdaptiveShading`, etc). Left in as commented-out lines with the real deprecated names in case you want to test separately.
+
+### Device scoring
+
+| Tier | All Devices `DeviceScore` | Snapdragon `DeviceScore` |
+|---|---|---|
+| Low End | 3000 | 3500 |
+| Balanced Performance | 4000 | 6000 |
+| Balanced Visual | 7000 | 9000 |
+| High End | 10000 | 12000 |
+
+Snapdragon scores sit above their All Devices counterparts at every tier — Adreno chips generally have more mature drivers and better sustained performance than budget Mali/Unisoc/PowerVR silicon at an equivalent nominal tier.
+
+### What wasn't touched
+
+Every Engine.ini in this update was checked byte-for-byte against this repo's own corresponding file. Where they matched exactly, they were left untouched (only the skin-cache tweak above was applied, and only to the two Low-End tiers). No Engine.ini in this update contains invented or unverified CVars.
 
 ---
 
@@ -260,7 +323,7 @@ https://ko-fi.com/geilan63
 
 # 📌 Notes
 
-* Configs are designed specifically for Wuthering Waves 3.4.
+* Configs are designed specifically for Wuthering Waves 3.5.
 * Snapdragon presets include Adreno-specific tuning.
 * All Devices presets are designed to work across multiple Android GPU architectures.
 * Future game updates may change or remove supported commands.
